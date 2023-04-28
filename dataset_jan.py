@@ -110,3 +110,18 @@ dataloader = DataLoader(dataset, batch_size=10, shuffle=False, drop_last=True)
 for data,result in dataloader:
     # print(np.array(data[0]))
     print(f'data : {data.shape} result : {result.shape}')
+
+
+from torch import nn
+from torch import optim
+
+class predictModel(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super(predictModel, self).__init__()
+        self.dense = nn.Linear(14, 1)
+        self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)
+        self.fc = nn.Linear(hidden_size, output_size)
+        
+    def forward(self,x):
+        #
+        return out
