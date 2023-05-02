@@ -169,4 +169,21 @@ for epoch in range(epochs):
             # 선형 회귀 모델의 경우 입력 데이터 x와 그에 대한 출력 y가 있음.
             # y = wx + b로 나타낼 때, w하고 b가 각각 가중치, 바이어스
     
-            print(f'Epoch [{epoch+1}/{epochs}], Step [{i+1}/{len(dataloader)}], Loss: {loss.item():.4f}')
+        print(f'Epoch [{epoch+1}/{epochs}], Step [{i+1}/{len(dataloader)}], Loss: {loss.item():.4f}')
+        
+#모델 평가 모드
+model.eval()
+
+# 손실 함수 정의
+test_loss = 0
+
+for i, (data, result) in enumerate(dataloader):
+    output = model(data.double())
+    
+    loss = criterion(output, result.view(-1, 1))
+    test_loss += loss.item()
+
+# 전체 데이터셋의 평균 손실값
+test_loss /= len(dataloader)
+
+print(f'Test Loss: {test_loss:.4f}')
