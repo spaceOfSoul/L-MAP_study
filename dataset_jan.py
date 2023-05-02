@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from torch.utils.data import Dataset
 import os
+import pickle
 
 forder= os.listdir('1월 데이터')
 
@@ -79,8 +80,6 @@ insert_values = np.array([[timestamps[i], 0.0] for i in range(num_inserts)], dty
 
 powers_np = np.insert(powers_np, insert_positions, insert_values, axis=0)
 
-import torch
-
 class CustomDataset(Dataset):
     def __init__(self, weather, energy):
         self.weather = weather # 일자별 기상 데이터가 저장된 딕셔너리
@@ -107,21 +106,55 @@ class CustomDataset(Dataset):
 dataset = CustomDataset(weather_by_region, powers_np)
 dataloader = DataLoader(dataset, batch_size=10, shuffle=False, drop_last=True)
 
-for data,result in dataloader:
-    # print(np.array(data[0]))
-    print(f'data : {data.shape} result : {result.shape}')
+# with open('dataloader.pkl', 'wb') as f:
+#     pickle.dump(dataloader, f)
 
+# for data,result in dataloader:
+#     # print(np.array(data[0]))
+#     print(f'data : {data.shape} result : {result.shape}')
 
+import torch
 from torch import nn
 from torch import optim
-
-class predictModel(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
-        super(predictModel, self).__init__()
-        self.dense = nn.Linear(14, 1)
-        self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)
-        self.fc = nn.Linear(hidden_size, output_size)
+class RNNModel(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        super(RNNModel, self).__init__()
+        self.rnn = nn.RNN(input_size=input_dim, hidden_size=hidden_dim, batch_first=True, dtype=torch.double)
+        self.fc = nn.Linear(hidden_dim, output_dim) # RNN 모델의 출력 값을 입력으로 받아들이고, 최종 출력 값을 예측하기 위한 선형 레이어를 정의
+        # 
+        # 가중치와 편향 텐서의 dtype을 double로 변경
+        self.fc.weight.data = self.fc.weight.data.double()
+        self.fc.bias.data = self.fc.bias.data.double()
         
-    def forward(self,x):
-        #
+    def forward(self, x):
+        out, hidden = self.rnn(x)
+        out = out[:, -1, :]  # 마지막 시퀀스의 결과만 사용
+        out = self.fc(out)  # 최종 결과
         return out
+
+# 모델 생성
+input_dim = 14
+hidden_dim = 64
+output_dim = 1
+model = RNNModel(input_dim, hidden_dim, output_dim)
+
+# 손실 함수 정의
+criterion = nn.MSELoss()
+
+# 최적화 기법 선택
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+epochs = 10
+for epoch in range(epochs):
+    for i, (data, result) in enumerate(dataloader):
+        output = model(data.double())
+    
+        # error 계산
+        loss = criterion(output, result.view(-1, 1))
+    
+        # 가중치 업데이트
+        optimizer.zero_grad() # 기울기 초기화
+        loss.backward() # 
+        optimizer.step()
+    
+        print(f'Epoch [{epoch+1}/{epochs}], Step [{i+1}/{len(dataloader)}], Loss: {loss.item():.4f}')
