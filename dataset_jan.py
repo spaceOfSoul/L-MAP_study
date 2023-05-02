@@ -104,7 +104,7 @@ class CustomDataset(Dataset):
         return weather_data, energy
     
 dataset = CustomDataset(weather_by_region, powers_np)
-dataloader = DataLoader(dataset, batch_size=10, shuffle=False, drop_last=True)
+dataloader = DataLoader(dataset, batch_size=15, shuffle=False, drop_last=True)
 
 # with open('dataloader.pkl', 'wb') as f:
 #     pickle.dump(dataloader, f)
@@ -137,6 +137,8 @@ input_dim = 14
 hidden_dim = 64
 output_dim = 1
 model = RNNModel(input_dim, hidden_dim, output_dim)
+seq_len = 5
+m_batch_size = 10
 
 # 손실 함수 정의
 criterion = nn.MSELoss()
@@ -144,17 +146,27 @@ criterion = nn.MSELoss()
 # 최적화 기법 선택
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-epochs = 10
+epochs = 100
 for epoch in range(epochs):
     for i, (data, result) in enumerate(dataloader):
-        output = model(data.double())
+        
+        for j in range(m_batch_size):
+            split_data = data[j:j+seq_len]
+            split_result = result[j:j+seq_len]
+            
+            output = model(split_data.double())
     
-        # error 계산
-        loss = criterion(output, result.view(-1, 1))
+            # error 계산
+            loss = criterion(output, split_result.view(-1, 1))
     
-        # 가중치 업데이트
-        optimizer.zero_grad() # 기울기 초기화
-        loss.backward() # 
-        optimizer.step()
+            # 가중치 업데이트
+            optimizer.zero_grad() # 기울기 초기화
+            loss.backward() # 파라미터를 업데이트할 손실함수의 미분값
+            optimizer.step() # 손실을 최소화하는 방향으로 파라미터의 gradient를 업데이트
+        
+            # 파라미터 :
+            # 학습 가능한 가중치(weight)와 편향(bias)
+            # 선형 회귀 모델의 경우 입력 데이터 x와 그에 대한 출력 y가 있음.
+            # y = wx + b로 나타낼 때, w하고 b가 각각 가중치, 바이어스
     
-        print(f'Epoch [{epoch+1}/{epochs}], Step [{i+1}/{len(dataloader)}], Loss: {loss.item():.4f}')
+            print(f'Epoch [{epoch+1}/{epochs}], Step [{i+1}/{len(dataloader)}], Loss: {loss.item():.4f}')
