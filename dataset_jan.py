@@ -177,14 +177,6 @@ for epoch in range(epochs):
     print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}')
 
 
-import matplotlib.pyplot as plt
-
-plt.plot(losses)
-plt.xlabel('Epochs')
-plt.ylabel('Loss')
-plt.title('Training Loss')
-plt.show()
-
 #모델 평가 모드
 model.eval()
 
@@ -200,3 +192,11 @@ for i, (data, result) in enumerate(dataloader):
 test_loss /= len(dataloader)
 
 print(f'Test Loss: {test_loss:.4f}')
+
+import matplotlib.pyplot as plt
+
+plt.plot(range(epochs),losses)
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.title('Training Loss')
+plt.show()
