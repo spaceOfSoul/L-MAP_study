@@ -148,7 +148,9 @@ criterion = nn.MSELoss()
 # 최적화 기법 선택
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-epochs = 100
+epochs = 200
+losses = []
+
 for epoch in range(epochs):
     for i, (data, result) in enumerate(dataloader):
         
@@ -170,30 +172,31 @@ for epoch in range(epochs):
             # 학습 가능한 가중치(weight)와 편향(bias)
             # 선형 회귀 모델의 경우 입력 데이터 x와 그에 대한 출력 y가 있음.
             # y = wx + b로 나타낼 때, w하고 b가 각각 가중치, 바이어스
-    
+        losses.append(loss.item())
         # print(f'Epoch [{epoch+1}/{epochs}], Step [{i+1}/{len(dataloader)}], Loss: {loss.item():.4f}')
     print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}')
-    
+
+
+import matplotlib.pyplot as plt
+
+plt.plot(losses)
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.title('Training Loss')
+plt.show()
+
 #모델 평가 모드
 model.eval()
 
 test_loss = 0
-
-preds = []
-targets = []
 
 for i, (data, result) in enumerate(dataloader):
     output = model(data.double())
     
     loss = criterion(output, result.view(-1, 1))
     test_loss += loss.item()
-    
-    preds.append(output[-1])
-    targets.append(result)
 
 # 전체 데이터셋의 평균 손실값
 test_loss /= len(dataloader)
 
-print(preds)
-print(targets)
 print(f'Test Loss: {test_loss:.4f}')
