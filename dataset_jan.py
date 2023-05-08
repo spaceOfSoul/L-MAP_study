@@ -148,7 +148,7 @@ criterion = nn.MSELoss()
 # 최적화 기법 선택
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-epochs = 200
+epochs = 1000
 losses = []
 
 for epoch in range(epochs):
@@ -172,8 +172,8 @@ for epoch in range(epochs):
             # 학습 가능한 가중치(weight)와 편향(bias)
             # 선형 회귀 모델의 경우 입력 데이터 x와 그에 대한 출력 y가 있음.
             # y = wx + b로 나타낼 때, w하고 b가 각각 가중치, 바이어스
-        losses.append(loss.item())
         # print(f'Epoch [{epoch+1}/{epochs}], Step [{i+1}/{len(dataloader)}], Loss: {loss.item():.4f}')
+    losses.append(loss.item())
     print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}')
 
 
