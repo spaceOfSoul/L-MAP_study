@@ -57,7 +57,6 @@ for file in forder:
     xlsx = pd.read_excel('2022_01_energy/2022_01/'+file, engine='openpyxl', skiprows=range(4))
     xlsx = xlsx.iloc[:-1, :]  #row remove
     powers.append(xlsx)
-    
 # powers
 
 # 모든 데이터프레임을 하나의 리스트로 합침.
@@ -81,10 +80,10 @@ insert_values = np.array([[timestamps[i], 0.0] for i in range(num_inserts)], dty
 powers_np = np.insert(powers_np, insert_positions, insert_values, axis=0)
 
 class CustomDataset(Dataset):
-    def __init__(self, weather, energy):
-        self.weather = weather # 일자별 기상 데이터가 저장된 딕셔너리
-        self.energy = energy # 에너지 리스트, 일자 상관없음.
-        
+    def __init__(self, weather, energy, regions): # regions은 지역코드가 들어간 list
+        self.weather = weather
+        self.energy = energy
+        self.regions = regions
     
     def __len__(self):
         return len(self.energy)
@@ -93,7 +92,7 @@ class CustomDataset(Dataset):
         energy = self.energy[idx][1]
         weather_data = []
         
-        for region_data in self.weather.values(): # 각 지역별 값.
+        for region_data in self.regions: # 각 지역별 값.
             # print(region_data[idx])
             region_weather = region_data[idx]
             region_weather = np.nan_to_num(region_weather, nan=0)
@@ -103,15 +102,8 @@ class CustomDataset(Dataset):
         
         return weather_data, energy
     
-dataset = CustomDataset(weather_by_region, powers_np)
+dataset = CustomDataset(weather_by_region, powers_np, [678])
 dataloader = DataLoader(dataset, batch_size=15, shuffle=False, drop_last=True)
-
-# with open('dataloader.pkl', 'wb') as f:
-#     pickle.dump(dataloader, f)
-
-# for data,result in dataloader:
-#     # print(np.array(data[0]))
-#     print(f'data : {data.shape} result : {result.shape}')
 
 import torch
 from torch import nn
@@ -153,7 +145,6 @@ losses = []
 
 for epoch in range(epochs):
     for i, (data, result) in enumerate(dataloader):
-        
         for j in range(m_batch_size):
             split_data = data[j:j+seq_len]
             split_result = result[j:j+seq_len]
