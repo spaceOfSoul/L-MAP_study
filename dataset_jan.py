@@ -80,10 +80,10 @@ insert_values = np.array([[timestamps[i], 0.0] for i in range(num_inserts)], dty
 powers_np = np.insert(powers_np, insert_positions, insert_values, axis=0)
 
 class CustomDataset(Dataset):
-    def __init__(self, weather, energy, regions): # regions은 지역코드가 들어간 list
+    def __init__(self, weather, energy, region):
         self.weather = weather
         self.energy = energy
-        self.regions = regions
+        self.region = region
     
     def __len__(self):
         return len(self.energy)
@@ -92,17 +92,17 @@ class CustomDataset(Dataset):
         energy = self.energy[idx][1]
         weather_data = []
         
-        for region_data in self.regions: # 각 지역별 값.
-            # print(region_data[idx])
-            region_weather = region_data[idx]
-            region_weather = np.nan_to_num(region_weather, nan=0)
-            weather_data.append(region_weather)
+        #
+        region_weather = self.weather[self.region][idx]
+        region_weather = np.nan_to_num(region_weather, nan=0)
+        weather_data.append(region_weather)
         
         weather_data = torch.tensor(weather_data)
         
         return weather_data, energy
-    
-dataset = CustomDataset(weather_by_region, powers_np, [678])
+
+# 678 : 강릉 성산
+dataset = CustomDataset(weather_by_region, powers_np,678)
 dataloader = DataLoader(dataset, batch_size=15, shuffle=False, drop_last=True)
 
 import torch
@@ -144,26 +144,34 @@ epochs = 1000
 losses = []
 
 for epoch in range(epochs):
-    for i, (data, result) in enumerate(dataloader):
-        for j in range(m_batch_size):
-            split_data = data[j:j+seq_len]
-            split_result = result[j:j+seq_len]
+    for i, (x_data, y_data) in enumerate(dataloader):
+        # x_data: (15, 기상데이터 개수(14))
+        # y_data: (15, 1)
+
+        for j in range(11):
+            # unsqueeze는 차원을 추가해주는 함수
+            x_input = x_data[j:j+4].unsqueeze(0)  # (1, 4, 기상데이터 개수(14))
+            y_input = y_data[j:j+4].unsqueeze(0)  # (1, 4, 1)
+            y_true = y_data[j+4].unsqueeze(0)  # (1, 1)
+
+            combined_data = torch.cat((x_input, y_input), dim=-1)  # (1, 4, 기상데이터 개수(14) + 1)
+            # shape 차원이 3개면 각각 batch_size, seq_len, input_size
             
-            output = model(split_data.double())
-    
-            # error 계산
-            loss = criterion(output, split_result.view(-1, 1))
-    
+            output = model(combined_data.double())  # 모델에 combined_data 전달하여 결과 추론
+
+            # loss 계산
+            loss = criterion(output, y_true) # y^, y
+
             # 가중치 업데이트
-            optimizer.zero_grad() # 기울기 초기화
-            loss.backward() # 파라미터를 업데이트할 손실함수의 미분값
-            optimizer.step() # 손실을 최소화하는 방향으로 파라미터의 gradient를 업데이트
-        
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            
             # 파라미터 :
             # 학습 가능한 가중치(weight)와 편향(bias)
             # 선형 회귀 모델의 경우 입력 데이터 x와 그에 대한 출력 y가 있음.
             # y = wx + b로 나타낼 때, w하고 b가 각각 가중치, 바이어스
-        # print(f'Epoch [{epoch+1}/{epochs}], Step [{i+1}/{len(dataloader)}], Loss: {loss.item():.4f}')
+            
     losses.append(loss.item())
     print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}')
 
