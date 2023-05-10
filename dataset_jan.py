@@ -125,7 +125,7 @@ class RNNModel(nn.Module):
         return out
 
 # 모델 생성
-input_dim = 14
+input_dim = 15 # feature 14 + energy 1
 hidden_dim = 64
 output_dim = 1
 model = RNNModel(input_dim, hidden_dim, output_dim)
@@ -151,14 +151,19 @@ for epoch in range(epochs):
         for j in range(11):
             # unsqueeze는 차원을 추가해주는 함수
             x_input = x_data[j:j+4].unsqueeze(0)  # (1, 4, 기상데이터 개수(14))
-            y_input = y_data[j:j+4].unsqueeze(0)  # (1, 4, 1)
+            x_input = x_input.squeeze(2)
+            y_input = y_data[j:j+4].unsqueeze(0)  # (1, 4)
+            y_input = y_input.unsqueeze(2) # (1, 4, 1)
             y_true = y_data[j+4].unsqueeze(0)  # (1, 1)
+            
+            # print(x_input)
+            # print(y_input)
 
             combined_data = torch.cat((x_input, y_input), dim=-1)  # (1, 4, 기상데이터 개수(14) + 1)
             # shape 차원이 3개면 각각 batch_size, seq_len, input_size
             
             output = model(combined_data.double())  # 모델에 combined_data 전달하여 결과 추론
-
+            print(f'output:{output}, y : {y_true}')
             # loss 계산
             loss = criterion(output, y_true) # y^, y
 
@@ -181,14 +186,23 @@ model.eval()
 
 test_loss = 0
 
-for i, (data, result) in enumerate(dataloader):
-    output = model(data.double())
-    
-    loss = criterion(output, result.view(-1, 1))
-    test_loss += loss.item()
+for i, (x_data, y_data) in enumerate(dataloader):
+    for j in range(x_data.shape[0]-4):  # 4개씩 그룹화
+        x_input = x_data[j:j+4].unsqueeze(0)
+        x_input = x_input.squeeze(2)
+        y_input = y_data[j:j+4].unsqueeze(0)
+        y_input = y_input.unsqueeze(2)
+        y_true = y_data[j+4].unsqueeze(0)
+
+        combined_data = torch.cat((x_input, y_input), dim=-1)
+
+        output = model(combined_data.double())
+        loss = criterion(output, y_true)
+
+        test_loss += loss.item()
 
 # 전체 데이터셋의 평균 손실값
-test_loss /= len(dataloader)
+test_loss /= (len(dataloader) * (x_data.shape[0]-4)) 
 
 print(f'Test Loss: {test_loss:.4f}')
 
