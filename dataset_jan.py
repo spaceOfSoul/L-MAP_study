@@ -4,6 +4,9 @@ import numpy as np
 from torch.utils.data import Dataset
 import os
 import pickle
+import torch
+from torch import nn
+from torch import optim
 
 forder= os.listdir('1월 데이터')
 
@@ -108,15 +111,13 @@ class CustomDataset(Dataset):
 
 # 678 : 강릉 성산
 dataset = CustomDataset(weather_by_region, powers_np,678)
-dataloader = DataLoader(dataset, batch_size=15, shuffle=False, drop_last=True)
+dataloader = DataLoader(dataset, batch_size=24, shuffle=False, drop_last=True)
 
-for i, data in enumerate(dataloader):
-    print(data.shape)
+# for i, data in enumerate(dataloader):
+#     print(data.shape)
 
-exit()
-import torch
-from torch import nn
-from torch import optim
+# exit()
+
 class RNNModel(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim):
         super(RNNModel, self).__init__()
@@ -153,66 +154,48 @@ epochs = 1000
 losses = []
 
 for epoch in range(epochs):
-    for i, (x_data, y_data) in enumerate(dataloader):
-        # x_data: (15, 기상데이터 개수(14))
-        # y_data: (15, 1)
+    for i, data in enumerate(dataloader):
+        x_data = data  # (15, 1, 15)
+        
+        # x_data의 마지막 값을 예측 대상인 y_data로 설정
+        y_data = x_data[:, :, -1]  # (15, 1)
 
-        for j in range(0, x_data.shape[0] - seq_len, seq_len):
-            # 5개의 시퀀스를 한 덩어리로 묶어서 처리
-            x_input = x_data[j:j+seq_len]  # (5, 기상데이터 개수(14))
-            x_input = x_input.unsqueeze(0)  # (1, 5, 기상데이터 개수(14))
-            y_input = y_data[j:j+seq_len]  # (5)
-            y_input = y_input.unsqueeze(0)  # (1, 5)
-            y_input = y_input.unsqueeze(2)  # (1, 5, 1)
+        # 모델에 x_data를 전달하여 결과를 추론
+        output = model(x_data.double())  # (15, 1)
+        
+        # loss 계산
+        loss = criterion(output, y_data)  # output과 y_data의 차이를 손실로 계산
 
-            y_true = y_data[j+seq_len].unsqueeze(0)  # (1, 1)
+        # 가중치 업데이트
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
-            combined_data = torch.cat((x_input, y_input), dim=-1)  # (1, 5, 기상데이터 개수(14) + 1)
-
-            output = model(combined_data.double())  # 모델에 combined_data 전달하여 결과 추론
-            print(f'{output.shape} {y_true.shape}')
-            # loss 계산
-            loss = criterion(output, y_true)  # output과 y_true의 차이를 손실로 계산
-
-            # 가중치 업데이트
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-
-            
     losses.append(loss.item())
     print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}')
 
-
-#모델 평가 모드
+# 모델 평가 모드
 model.eval()
 
 test_loss = 0
 
-for i, (x_data, y_data) in enumerate(dataloader):
-    for j in range(x_data.shape[0]-seq_len):
-        x_input = x_data[j:j+seq_len].unsqueeze(0)
-        x_input = x_input.squeeze(2)
-        y_input = y_data[j:j+seq_len].unsqueeze(0)
-        y_input = y_input.unsqueeze(2)
-        y_true = y_data[j+seq_len].unsqueeze(0)
+for i, data in enumerate(dataloader):
+    x_data = data  # (15, 1, 15)
+    y_data = x_data[:, :, -1]  # (15, 1)
 
-        combined_data = torch.cat((x_input, y_input), dim=-1)
+    output = model(x_data.double())  # (15, 1)
+    loss = criterion(output, y_data)
 
-        output = model(combined_data.double())
-        loss = criterion(output, y_true)
-
-        test_loss += loss.item()
+    test_loss += loss.item()
 
 # 전체 데이터셋의 평균 손실값
-test_loss /= (len(dataloader) * (x_data.shape[0]-seq_len)) 
+test_loss /= len(dataloader)
 
 print(f'Test Loss: {test_loss:.4f}')
 
 import matplotlib.pyplot as plt
 
-plt.plot(range(epochs),losses)
+plt.plot(range(epochs), losses)
 plt.xlabel('Epochs')
 plt.ylabel('Loss')
 plt.title('Training Loss')
