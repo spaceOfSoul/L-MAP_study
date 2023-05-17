@@ -148,34 +148,29 @@ for epoch in range(epochs):
         # x_data: (15, 기상데이터 개수(14))
         # y_data: (15, 1)
 
-        for j in range(10):
-            # unsqueeze는 차원을 추가해주는 함수
-            x_input = x_data[j:j+seq_len].unsqueeze(0)  # (1, 5, 기상데이터 개수(14))
-            x_input = x_input.squeeze(2)
-            y_input = y_data[j:j+seq_len].unsqueeze(0)  # (1, 5)
-            y_input = y_input.unsqueeze(2) # (1, 5, 1)
+        for j in range(0, x_data.shape[0] - seq_len, seq_len):
+            # 5개의 시퀀스를 한 덩어리로 묶어서 처리
+            x_input = x_data[j:j+seq_len]  # (5, 기상데이터 개수(14))
+            x_input = x_input.unsqueeze(0)  # (1, 5, 기상데이터 개수(14))
+            y_input = y_data[j:j+seq_len]  # (5)
+            y_input = y_input.unsqueeze(0)  # (1, 5)
+            y_input = y_input.unsqueeze(2)  # (1, 5, 1)
+
             y_true = y_data[j+seq_len].unsqueeze(0)  # (1, 1)
-            
-            # print(x_input)
-            # print(y_input)
 
             combined_data = torch.cat((x_input, y_input), dim=-1)  # (1, 5, 기상데이터 개수(14) + 1)
-            # shape 차원이 3개면 각각 batch_size, seq_len, input_size
-            
+
             output = model(combined_data.double())  # 모델에 combined_data 전달하여 결과 추론
-            print(f'output:{output}, y : {y_true}')
+            print(f'{output.shape} {y_true.shape}')
             # loss 계산
-            loss = criterion(output, y_true) # y^, y
+            loss = criterion(output, y_true)  # output과 y_true의 차이를 손실로 계산
 
             # 가중치 업데이트
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            
-            # 파라미터 :
-            # 학습 가능한 가중치(weight)와 편향(bias)
-            # 선형 회귀 모델의 경우 입력 데이터 x와 그에 대한 출력 y가 있음.
-            # y = wx + b로 나타낼 때, w하고 b가 각각 가중치, 바이어스
+
+
             
     losses.append(loss.item())
     print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}')
@@ -187,12 +182,12 @@ model.eval()
 test_loss = 0
 
 for i, (x_data, y_data) in enumerate(dataloader):
-    for j in range(x_data.shape[0]-4):  # 4개씩 그룹화
-        x_input = x_data[j:j+4].unsqueeze(0)
+    for j in range(x_data.shape[0]-seq_len):
+        x_input = x_data[j:j+seq_len].unsqueeze(0)
         x_input = x_input.squeeze(2)
-        y_input = y_data[j:j+4].unsqueeze(0)
+        y_input = y_data[j:j+seq_len].unsqueeze(0)
         y_input = y_input.unsqueeze(2)
-        y_true = y_data[j+4].unsqueeze(0)
+        y_true = y_data[j+seq_len].unsqueeze(0)
 
         combined_data = torch.cat((x_input, y_input), dim=-1)
 
@@ -202,7 +197,7 @@ for i, (x_data, y_data) in enumerate(dataloader):
         test_loss += loss.item()
 
 # 전체 데이터셋의 평균 손실값
-test_loss /= (len(dataloader) * (x_data.shape[0]-4)) 
+test_loss /= (len(dataloader) * (x_data.shape[0]-seq_len)) 
 
 print(f'Test Loss: {test_loss:.4f}')
 
