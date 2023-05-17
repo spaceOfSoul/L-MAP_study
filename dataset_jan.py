@@ -92,19 +92,28 @@ class CustomDataset(Dataset):
         energy = self.energy[idx][1]
         weather_data = []
         
-        #
         region_weather = self.weather[self.region][idx]
         region_weather = np.nan_to_num(region_weather, nan=0)
         weather_data.append(region_weather)
-        
+
+        # energy를 numpy 배열로 변환하고 차원을 추가
+        energy = np.array([energy])
+
+        # weather_data에 energy 데이터 추가
+        weather_data = np.concatenate((weather_data, [energy]), axis=-1)
         weather_data = torch.tensor(weather_data)
-        
-        return weather_data, energy
+
+        return weather_data
+
 
 # 678 : 강릉 성산
 dataset = CustomDataset(weather_by_region, powers_np,678)
 dataloader = DataLoader(dataset, batch_size=15, shuffle=False, drop_last=True)
 
+for i, data in enumerate(dataloader):
+    print(data.shape)
+
+exit()
 import torch
 from torch import nn
 from torch import optim
