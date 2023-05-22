@@ -53,7 +53,7 @@ for epoch in range(epochs):
 
         # 모델에 x_data를 전달하여 결과를 추론
         output = model(x_data.double())  # (15, 1)
-        
+        print(f'y : {y_data}, y_hat : {output}')
         # loss 계산
         loss = criterion(output, y_data)  # output과 y_data의 차이를 손실로 계산
 

@@ -82,39 +82,40 @@ insert_values = np.array([[timestamps[i], 0.0] for i in range(num_inserts)], dty
 
 powers_np = np.insert(powers_np, insert_positions, insert_values, axis=0)
 
+seq_len = 5
+batch_size = 11
+
 class CustomDataset(Dataset):
-    def __init__(self, weather, energy, region):
+    def __init__(self, weather, energy, region, seq_len):
         self.weather = weather
         self.energy = energy
         self.region = region
+        self.seq_len = seq_len
     
     def __len__(self):
-        return len(self.energy)
+        return len(self.energy)-self.seq_len
     
     def __getitem__(self, idx):
-        energy = self.energy[idx][1]
+        energy = self.energy[idx+self.seq_len][1]
         weather_data = []
         
-        region_weather = self.weather[self.region][idx]
-        region_weather = np.nan_to_num(region_weather, nan=0)
-        weather_data.append(region_weather)
+        for i in range(self.seq_len):
+            region_weather = self.weather[self.region][idx + i]
+            region_weather = np.nan_to_num(region_weather, nan=0)
+            weather_data.append(region_weather)
 
         # energy를 numpy 배열로 변환하고 차원을 추가
         energy = np.array([energy])
-
-        # weather_data에 energy 데이터 추가
-        weather_data = np.concatenate((weather_data, [energy]), axis=-1)
         weather_data = torch.tensor(weather_data)
-
-        return weather_data
-
+        
+        return weather_data, energy
 
 # 678 : 강릉 성산
-dataset = CustomDataset(weather_by_region, powers_np,678)
-dataloader = DataLoader(dataset, batch_size=15, shuffle=False, drop_last=True)
+dataset = CustomDataset(weather_by_region, powers_np,678, seq_len)
+dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=True)
 
-# for i, data in enumerate(dataloader):
-#     print(data.shape)
+for i, (x_data, y_data) in enumerate(dataloader):
+    print(f'{x_data.shape} {y_data.shape}')
 
 # exit()
 
@@ -135,12 +136,10 @@ class RNNModel(nn.Module):
         return out
 
 # 모델 생성
-input_dim = 15 # feature 14 + energy 1
+input_dim = 14 # feature 14 + energy 1
 hidden_dim = 64
 output_dim = 1
 model = RNNModel(input_dim, hidden_dim, output_dim)
-seq_len = 5
-m_batch_size = 10
 
 # 손실 함수 정의
 criterion = nn.MSELoss()
@@ -148,24 +147,18 @@ criterion = nn.MSELoss()
 # 예측값과 실제 값의 차이를 제곱해서 데이터의 개수로 나눈 거
 
 # 최적화 기법 선택
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=0.01)
 
 epochs = 1000
 losses = []
 
 for epoch in range(epochs):
-    for i, data in enumerate(dataloader):
-        x_data = data  # (15, 1, 15)
-        
-        # x_data의 마지막 값을 예측 대상인 y_data로 설정
-        y_data = x_data[:, :, -1]  # (15, 1)
-
-        # 모델에 x_data를 전달하여 결과를 추론
-        output = model(x_data.double())  # (15, 1)
+    for i, (x_data, y_data) in enumerate(dataloader):
+        output = model(x_data.double())
         
         # loss 계산
         loss = criterion(output, y_data)  # output과 y_data의 차이를 손실로 계산
-
+        # print(f'output:{output}, y_data:{y_data}')
         # 가중치 업데이트
         optimizer.zero_grad()
         loss.backward()
@@ -179,10 +172,9 @@ model.eval()
 
 test_loss = 0
 
-for i, data in enumerate(dataloader):
-    x_data = data  # (15, 1, 15)
-    y_data = x_data[:, :, -1]  # (15, 1)
-
+for i, (x_data, y_data) in enumerate(dataloader):
+    
+    
     output = model(x_data.double())  # (15, 1)
     loss = criterion(output, y_data)
 
