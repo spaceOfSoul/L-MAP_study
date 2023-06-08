@@ -37,11 +37,16 @@ for i in weather_by_region:
     
     region_data = concated_data.values
     size=len(region_data)
+    # print(region_data[567])
     result = []
+    sum = np.zeros(14).astype(float)
     
     for j in range(size):
         row_data = region_data[j][2:].astype(float)
-        result.append(row_data/60)
+        sum += row_data
+        if (j+1) % 60 == 0:
+            result.append(sum/60)
+            sum = np.zeros(14)
 
     weather_by_region[i]=result
     
@@ -78,7 +83,7 @@ insert_values = np.array([[timestamps[i], 0.0] for i in range(num_inserts)], dty
 powers_np = np.insert(powers_np, insert_positions, insert_values, axis=0)
 
 seq_len = 5
-batch_size = 60
+batch_size = 11
 
 class CustomDataset(Dataset):
     def __init__(self, weather, energy, region, seq_len):
