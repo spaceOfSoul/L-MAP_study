@@ -2,7 +2,7 @@ import os
 import win32com.client as win32
 import glob
 
-directories = glob.glob('GWNU_C9_발전량/*')
+directories = glob.glob('6월~12월_학생회관/*')
 
 excel = win32.gencache.EnsureDispatch('Excel.Application')
 
